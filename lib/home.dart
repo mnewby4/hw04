@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -68,7 +70,7 @@ class _HomeState extends State<HomePage> {
       },
     );
   }*/
-
+  
   void _signOut() async {
     await widget.auth.signOut();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -82,8 +84,13 @@ class _HomeState extends State<HomePage> {
     );
   }
 
-  void _enterChatRoom(String currentRoom) {
-    print(currentRoom);
+  void _enterChatRoom (String currentRoom) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatPage(chatroom: currentRoom),
+      ),
+    );
   }
   
   @override
@@ -92,13 +99,12 @@ class _HomeState extends State<HomePage> {
       appBar: AppBar(
         title: Text("ChattyRooms Chat Rooms"),
         actions: <Widget>[
-          // Sign out Button
-          ElevatedButton(
-            onPressed: () {
-              _signOut();
-            },
-            child: Text('Sign Out'),
+          // NAVBAR
+          IconButton(
+            onPressed: () { _signOut(); },
+            icon: Icon(Icons.menu),
           ),
+          SizedBox(width: 10),
         ],
       ),
       body: Center(
@@ -121,7 +127,7 @@ class _HomeState extends State<HomePage> {
                   return Column(
                     children: <Widget>[
                       ElevatedButton( 
-                        onPressed: () => _enterChatRoom(chatRooms[index]),
+                        onPressed: () {_enterChatRoom(chatRooms[index]);},
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -145,4 +151,100 @@ class _HomeState extends State<HomePage> {
       ),
     );
   }
+}
+
+class ChatPage extends StatefulWidget {
+  const ChatPage({Key? key, required this.chatroom}) : super(key: key);
+  final String chatroom; 
+
+  @override
+  _ChatState createState() => _ChatState();
+}
+
+class _ChatState extends State<ChatPage> {
+  final TextEditingController _msgController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  User? currentUser = FirebaseAuth.instance.currentUser;
+
+  void _sendMessage() async {
+    if (_msgController.text.isNotEmpty) {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(currentUser!.uid).get();
+      try {
+        await FirebaseFirestore.instance.collection('messages').add({
+          'chatroom': widget.chatroom,
+          'username': '${userDoc['role']}',
+          'content': _msgController.text,
+          'date': FieldValue.serverTimestamp(),
+        });
+        _msgController.clear();
+      } catch (error) {
+        print('Unable to send message: $error');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("${widget.chatroom} chatroom")),
+      body: Column(
+        children: [
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('messages')
+                  .orderBy('date', descending: false)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                }
+                if (!snapshot.hasData) {
+                  return Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
+
+                final messages = snapshot.data!.docs.where((doc) => doc['chatroom'] == widget.chatroom).toList();
+                return ListView.builder(
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    return ListTile(
+                      title: Text("${message['username']}: ${message['content']}"),
+                      subtitle: Text(
+                        message['date'] != null ? message['date'].toDate().toString() : "",
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _msgController,
+                    decoration: InputDecoration(
+                      hintText: 'Enter Message',
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.send),
+                  onPressed: () => _sendMessage(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 }
