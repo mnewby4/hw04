@@ -1,25 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'loginTabs.dart';
-/*
-  1. Any splash screen
-  2. User registration + login (firebase auth + cloud firestore)
-    - reg: unique user id, first, last, user role, registration datetime
-    - auth: email + password
-    auth pg shld have first, last, user role, email, pass
-  3. after: ordered list of all msg boards name w img icon = each board (hardcoded?)
-  4. icon in menu bar [of scaffold area] to open sliding nav menu
-    - msg boards
-    - profile [user can CHANGE this info!!]
-    - settings: logout, change login info w personal info 
-  5. new msg board -> list of all msgs posted in that convo 
-    - every msg: datetime, msg, user/displayname
-    - board name = titlebar
-    - msgs = displayed IN REAL TIME
-*/
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -52,7 +34,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(Duration(seconds: 5), () {
+    Future.delayed(Duration(seconds: 1), () {
       setState(() {
         _isLoading = false;
       });

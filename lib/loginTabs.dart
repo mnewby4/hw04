@@ -3,6 +3,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
+import 'home.dart';
+
+/*
+  User registration + login (firebase auth + cloud firestore)
+    - reg: unique user id, first, last, user role, registration datetime
+    - auth: email + password
+    auth pg shld have first, last, user role, email, pass
+ */
 
 class LoginTabs extends StatefulWidget {
   LoginTabs({Key? key}) : super(key: key);
@@ -49,6 +57,9 @@ class RegisterEmailSection extends StatefulWidget {
 
 class _RegisterEmailSectionState extends State<RegisterEmailSection> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _firstController = TextEditingController();
+  final TextEditingController _lastController = TextEditingController();
+  final TextEditingController _roleController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _success = false;
@@ -57,7 +68,7 @@ class _RegisterEmailSectionState extends State<RegisterEmailSection> {
 
   void _register() async {
     try {
-      await widget.auth.createUserWithEmailAndPassword(
+      var cred = await widget.auth.createUserWithEmailAndPassword(
         email: _emailController.text,
         password: _passwordController.text,
       );
@@ -67,9 +78,21 @@ class _RegisterEmailSectionState extends State<RegisterEmailSection> {
         _initialState = false;
       });
 
+      final user = cred.user!;
+      final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+
+      await userDoc.set({
+        'id': user.uid,
+        'firstName': _firstController.text,
+        'lastName': _lastController.text, 
+        'role': _roleController.text, 
+        'date': FieldValue.serverTimestamp(),
+        'email': _emailController.text,
+      });
+
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => AuthService(auth: widget.auth)),
+        MaterialPageRoute(builder: (context) => HomePage(auth: widget.auth)),
       );
     } catch (e) {
       setState(() {
@@ -90,6 +113,39 @@ class _RegisterEmailSectionState extends State<RegisterEmailSection> {
             child: Text('Register with a new account'),
             padding: const EdgeInsets.all(16),
             alignment: Alignment.center,
+          ),
+          //FIRST NAME 
+          TextFormField(
+            controller: _firstController,
+            decoration: InputDecoration(labelText: 'First Name'),
+            validator: (value) {
+              if (value?.isEmpty??true) {
+                return 'Please enter some text';
+              }
+              return null;
+            },
+          ),
+          //LAST NAME
+          TextFormField(
+            controller: _lastController,
+            decoration: InputDecoration(labelText: 'Last Name'),
+            validator: (value) {
+              if (value?.isEmpty??true) {
+                return 'Please enter some text';
+              }
+              return null;
+            },
+          ),
+          //USER ROLE
+          TextFormField(
+            controller: _roleController,
+            decoration: InputDecoration(labelText: 'User Role'),
+            validator: (value) {
+              if (value?.isEmpty??true) {
+                return 'Please enter some text';
+              }
+              return null;
+            },
           ),
           //Email textform
           TextFormField(
@@ -131,7 +187,7 @@ class _RegisterEmailSectionState extends State<RegisterEmailSection> {
             alignment: Alignment.center,
             child: Text(
               _initialState
-                  ? 'Please Register'
+                  ? ''
               : _success
                   ? 'Successfully registered $_userEmail'
                   : 'Registration failed',
@@ -173,7 +229,7 @@ class _EmailPasswordFormState extends State<EmailPasswordForm> {
       });
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => AuthService(auth: widget.auth)),
+        MaterialPageRoute(builder: (context) => HomePage(auth: widget.auth)),
       );
     } catch (e) {
       setState(() {
@@ -232,7 +288,7 @@ class _EmailPasswordFormState extends State<EmailPasswordForm> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               _initialState
-                  ? 'Please sign in'
+                  ? ''
                   : _success
                   ? 'Successfully signed in $_userEmail'
                   : 'Sign in failed',
@@ -240,110 +296,6 @@ class _EmailPasswordFormState extends State<EmailPasswordForm> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class AuthService extends StatefulWidget{
-  AuthService({Key? key, required this.auth});
-  final FirebaseAuth auth;
-
-  @override
-  _ProfilePage createState() => _ProfilePage();
-}
-
-class _ProfilePage extends State<AuthService> {
-  User? user = FirebaseAuth.instance.currentUser;
-  final TextEditingController _changedController = TextEditingController();
-  final GlobalKey<FormState> _changedKey = GlobalKey<FormState>();
-  Widget _welcomeInfo() {
-    return Text("Welcome, ${user!.email}");
-  }
-  Widget _passButton() {
-    return ElevatedButton(
-      onPressed: () => _changePassword(),
-      child: Text("Change Password"),
-    );
-  }
-
-  void _changePassword() {
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        String errorMessage = " ";
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter modalSetState) {
-            return Container(
-              height: 300,
-              padding: EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _changedController,
-                    decoration: InputDecoration(labelText: "New Password"),
-                  ),
-                  ElevatedButton(
-                    onPressed: () async {
-                      try {
-                        await user?.updatePassword(_changedController.text);
-                        modalSetState(() {
-                          errorMessage = "Successfully changed password";
-                        });
-                      } catch (e) {
-                        modalSetState(() {
-                          errorMessage = e.toString();
-                        });
-                      }
-                    },
-                    child: Text("Confirm"),
-                  ),
-                  Text(errorMessage),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _signOut() async {
-    await widget.auth.signOut();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Sign out in progress...'),
-    ));
-    await Future.delayed(const Duration(seconds: 1));
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) =>  LoginTabs()),
-      (route) => false,
-    );
-  }
-  
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Profile Page"),
-        actions: <Widget>[
-          // Sign out Button
-          ElevatedButton(
-            onPressed: () {
-              _signOut();
-            },
-            child: Text('Sign Out'),
-          ),
-        ],
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            _welcomeInfo(),
-            _passButton(),
-          ],
-        ),
       ),
     );
   }
