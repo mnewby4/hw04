@@ -17,10 +17,11 @@ class _HomeState extends State<HomePage> {
   User? user = FirebaseAuth.instance.currentUser;
   final TextEditingController _changedController = TextEditingController();
   final GlobalKey<FormState> _changedKey = GlobalKey<FormState>();
-  Widget _welcomeInfo() {
-    return Text("Welcome, ${user!.email}");
-  }
-  Widget _passButton() {
+
+  final List<String> chatRooms = ["Welcome", "GSU Panthers", "Advice Column"];
+  final List<Icon> chatIcons = [Icon(Icons.handshake), Icon(Icons.school), Icon(Icons.newspaper)];
+
+  /*Widget _passButton() {
     return ElevatedButton(
       onPressed: () => _changePassword(),
       child: Text("Change Password"),
@@ -66,7 +67,7 @@ class _HomeState extends State<HomePage> {
         );
       },
     );
-  }
+  }*/
 
   void _signOut() async {
     await widget.auth.signOut();
@@ -80,12 +81,16 @@ class _HomeState extends State<HomePage> {
       (route) => false,
     );
   }
+
+  void _enterChatRoom(String currentRoom) {
+    print(currentRoom);
+  }
   
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Profile Page"),
+        title: Text("ChattyRooms Chat Rooms"),
         actions: <Widget>[
           // Sign out Button
           ElevatedButton(
@@ -100,8 +105,41 @@ class _HomeState extends State<HomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            _welcomeInfo(),
-            _passButton(),
+            Text("Welcome, ${user!.email}"),
+            Text(
+              "Select a chatroom below: ",
+              style: TextStyle(
+                fontSize: 30,
+              ),
+            ),
+            SizedBox(height: 20),
+            Container( 
+              height: 600,
+              child: ListView.builder(
+                itemCount: chatRooms.length, 
+                itemBuilder: (context, index) {
+                  return Column(
+                    children: <Widget>[
+                      ElevatedButton( 
+                        onPressed: () => _enterChatRoom(chatRooms[index]),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox( 
+                              child: chatIcons[index]
+                            ),
+                            SizedBox(width: 30),
+                            Text(chatRooms[index], style: TextStyle(fontSize: 40)),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 50),
+                    ],
+                  );
+                },
+              ),
+            ),
+            //_passButton(),
           ],
         ),
       ),
