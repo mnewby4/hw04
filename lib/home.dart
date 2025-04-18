@@ -1,5 +1,3 @@
-import 'dart:ffi';
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -16,13 +14,7 @@ class HomePage extends StatefulWidget{
 }
 
 class _HomeState extends State<HomePage> {
-  User? user = FirebaseAuth.instance.currentUser;
-  final TextEditingController _changedController = TextEditingController();
-  final GlobalKey<FormState> _changedKey = GlobalKey<FormState>();
-
-  final List<String> chatRooms = ["Welcome", "GSU Panthers", "Advice Column"];
-  final List<Icon> chatIcons = [Icon(Icons.handshake), Icon(Icons.school), Icon(Icons.newspaper)];
-
+  User? currentUser = FirebaseAuth.instance.currentUser;
   /*Widget _passButton() {
     return ElevatedButton(
       onPressed: () => _changePassword(),
@@ -71,7 +63,7 @@ class _HomeState extends State<HomePage> {
     );
   }*/
   
-  void _signOut() async {
+  /*void _signOut() async {
     await widget.auth.signOut();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text('Sign out in progress...'),
@@ -82,13 +74,86 @@ class _HomeState extends State<HomePage> {
       MaterialPageRoute(builder: (context) =>  LoginTabs()),
       (route) => false,
     );
+  }*/
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("ChattyRooms"),
+      ),
+      body: Center(
+        child: SelectionPage(user: currentUser),
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.green),
+              child: Text('Chatty Menu'),
+            ),
+            ListTile(
+              title: Text("Chatty Rooms"),
+              onTap: () {
+                SelectionPage(user: currentUser);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: Text("Your Profile"),
+              onTap: () {
+                print("profile");
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: Text("Settings"),
+              onTap: () {
+                print("settings");
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class SelectionPage extends StatefulWidget {
+  const SelectionPage({Key? key, required this.user}) : super(key: key);
+  final User? user;
+
+  @override
+  _SelectState createState() => _SelectState();
+}
+
+class _SelectState extends State<SelectionPage> {
+  final List<String> chatRooms = ["Welcome", "GSU Panthers", "Advice Column"];
+  final List<Icon> chatIcons = [Icon(Icons.handshake), Icon(Icons.school), Icon(Icons.newspaper)];
+  String username = "Unknown";
+
+  @override
+  void initState() {
+    super.initState();
+    _catchUsername();
+  }
+
+  void _catchUsername() async {
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(widget.user!.uid).get();
+    setState(() {
+      username = userDoc['role'];
+      print(username);
+    }); 
+
   }
 
   void _enterChatRoom (String currentRoom) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ChatPage(chatroom: currentRoom),
+        builder: (context) => ChatPage(chatroom: currentRoom, user: widget.user),
       ),
     );
   }
@@ -96,28 +161,12 @@ class _HomeState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("ChattyRooms Chat Rooms"),
-        actions: <Widget>[
-          // NAVBAR
-          IconButton(
-            onPressed: () { _signOut(); },
-            icon: Icon(Icons.menu),
-          ),
-          SizedBox(width: 10),
-        ],
-      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Text("Welcome, ${user!.email}"),
-            Text(
-              "Select a chatroom below: ",
-              style: TextStyle(
-                fontSize: 30,
-              ),
-            ),
+            Text("Welcome, ${username}"),
+            Text("Select a chatroom below: ", style: TextStyle(fontSize: 30)),
             SizedBox(height: 20),
             Container( 
               height: 600,
@@ -131,9 +180,7 @@ class _HomeState extends State<HomePage> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            SizedBox( 
-                              child: chatIcons[index]
-                            ),
+                            SizedBox(child: chatIcons[index]),
                             SizedBox(width: 30),
                             Text(chatRooms[index], style: TextStyle(fontSize: 40)),
                           ],
@@ -145,7 +192,6 @@ class _HomeState extends State<HomePage> {
                 },
               ),
             ),
-            //_passButton(),
           ],
         ),
       ),
@@ -153,9 +199,15 @@ class _HomeState extends State<HomePage> {
   }
 }
 
+/*class ProfilePage extends StatefulWidget {
+  const ProfilePage({Key? key}) : super(key: key);
+}*/
+
+
 class ChatPage extends StatefulWidget {
-  const ChatPage({Key? key, required this.chatroom}) : super(key: key);
+  const ChatPage({Key? key, required this.chatroom, required this.user}) : super(key: key);
   final String chatroom; 
+  final User? user;
 
   @override
   _ChatState createState() => _ChatState();
@@ -164,11 +216,10 @@ class ChatPage extends StatefulWidget {
 class _ChatState extends State<ChatPage> {
   final TextEditingController _msgController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  User? currentUser = FirebaseAuth.instance.currentUser;
 
   void _sendMessage() async {
     if (_msgController.text.isNotEmpty) {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(currentUser!.uid).get();
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(widget.user!.uid).get();
       try {
         await FirebaseFirestore.instance.collection('messages').add({
           'chatroom': widget.chatroom,
@@ -246,5 +297,4 @@ class _ChatState extends State<ChatPage> {
       ),
     );
   }
-
 }
