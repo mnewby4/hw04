@@ -14,67 +14,7 @@ class HomePage extends StatefulWidget{
 }
 
 class _HomeState extends State<HomePage> {
-  User? currentUser = FirebaseAuth.instance.currentUser;
-  /*Widget _passButton() {
-    return ElevatedButton(
-      onPressed: () => _changePassword(),
-      child: Text("Change Password"),
-    );
-  }
-
-  void _changePassword() {
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        String errorMessage = " ";
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter modalSetState) {
-            return Container(
-              height: 300,
-              padding: EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _changedController,
-                    decoration: InputDecoration(labelText: "New Password"),
-                  ),
-                  ElevatedButton(
-                    onPressed: () async {
-                      try {
-                        await user?.updatePassword(_changedController.text);
-                        modalSetState(() {
-                          errorMessage = "Successfully changed password";
-                        });
-                      } catch (e) {
-                        modalSetState(() {
-                          errorMessage = e.toString();
-                        });
-                      }
-                    },
-                    child: Text("Confirm"),
-                  ),
-                  Text(errorMessage),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }*/
-  
-  /*void _signOut() async {
-    await widget.auth.signOut();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Sign out in progress...'),
-    ));
-    await Future.delayed(const Duration(seconds: 1));
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) =>  LoginTabs()),
-      (route) => false,
-    );
-  }*/
+  User? currentUser = FirebaseAuth.instance.currentUser;  
   
   @override
   Widget build(BuildContext context) {
@@ -105,8 +45,10 @@ class _HomeState extends State<HomePage> {
             ListTile(
               title: Text("Settings"),
               onTap: () {
-                print("settings");
                 Navigator.pop(context);
+                Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => SettingsPage(auth: widget.auth, user: currentUser)),
+                );
               },
             ),
           ],
@@ -141,7 +83,6 @@ class _SelectState extends State<SelectionPage> {
       username = userDoc['role'];
       print(username);
     }); 
-
   }
 
   void _enterChatRoom (String currentRoom) {
@@ -160,7 +101,6 @@ class _SelectState extends State<SelectionPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Text("Welcome, ${username}"),
             Text("Select a chatroom below: ", style: TextStyle(fontSize: 30)),
             SizedBox(height: 20),
             Container( 
@@ -323,6 +263,128 @@ class _ProfileState extends State<ProfilePage> {
     );
   }
  }
+
+class SettingsPage extends StatefulWidget {
+  const SettingsPage({Key? key, required this.auth, required this.user}) : super(key: key);
+  final FirebaseAuth auth;
+  final User? user;
+  @override
+  _SettingState createState() => _SettingState();
+}
+
+class _SettingState extends State<SettingsPage> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _success = false;
+  bool _initialState = true;
+  String email = "";
+
+  @override
+  void initState() {
+    super.initState();
+    grabEmail();
+  }
+
+  void grabEmail() async {
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(widget.user!.uid).get();
+    setState(() {
+      email = userDoc['email'];
+    });
+  }
+
+  void _signOut() async {
+    await widget.auth.signOut();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Sign out in progress...'),
+    ));
+    await Future.delayed(const Duration(seconds: 1));
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => LoginTabs()),
+      (route) => false,
+    );
+  }
+
+  void _updateEmailAndPassword() async {
+    try {
+      await widget.user?.updatePassword(_passwordController.text);
+      setState(() {
+        _success = true;
+        _initialState = false;
+      });
+    } catch (error) {
+      print(error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("Settings Page")),
+      body: Column(
+        children: <Widget>[
+          Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Container(
+                  child: Text('Edit your password here'),
+                  padding: const EdgeInsets.all(16),
+                  alignment: Alignment.center,
+                ),
+                //Email textform
+                Text("Email: ${email}"),
+                //Password textform
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: InputDecoration(labelText: 'Password'),
+                  validator: (value) {
+                    if(value?.isEmpty??true) {
+                      return 'Please enter some text';
+                    }
+                    return null;
+                  },
+                ),
+                //Submit Button
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  alignment: Alignment.center,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        _updateEmailAndPassword();
+                      }
+                    },
+                    child: Text('Submit'),
+                  ),
+                ),
+                //Error Message
+                Container(
+                  alignment: Alignment.center,
+                  child: Text(
+                    _initialState
+                        ? ' '
+                    : _success
+                        ? 'Successfully updated personal details--check your email!'
+                        : 'Registration failed',
+                    style: TextStyle(color: _success ? Colors.green : Colors.red),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              _signOut();
+            }, 
+            child: Text("Sign Out"),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 
 class ChatPage extends StatefulWidget {
