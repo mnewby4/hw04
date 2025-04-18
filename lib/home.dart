@@ -94,17 +94,12 @@ class _HomeState extends State<HomePage> {
               child: Text('Chatty Menu'),
             ),
             ListTile(
-              title: Text("Chatty Rooms"),
-              onTap: () {
-                SelectionPage(user: currentUser);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
               title: Text("Your Profile"),
               onTap: () {
-                print("profile");
                 Navigator.pop(context);
+                Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => ProfilePage(user: currentUser)),
+                );
               },
             ),
             ListTile(
@@ -199,9 +194,135 @@ class _SelectState extends State<SelectionPage> {
   }
 }
 
-/*class ProfilePage extends StatefulWidget {
-  const ProfilePage({Key? key}) : super(key: key);
-}*/
+class ProfilePage extends StatefulWidget {
+  const ProfilePage({Key? key, required this.user}) : super(key: key);
+  final User? user;
+  @override
+  _ProfileState createState() => _ProfileState();
+}
+
+class _ProfileState extends State<ProfilePage> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _firstController = TextEditingController();
+  final TextEditingController _lastController = TextEditingController();
+  final TextEditingController _roleController = TextEditingController();
+  bool _success = false;
+  bool _initialState = true;
+  final CollectionReference _users = FirebaseFirestore.instance.collection('users');
+
+  @override
+  void initState() {
+    super.initState();
+    _catchProfileInfo();
+  }
+
+  void _catchProfileInfo() async {
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(widget.user!.uid).get();
+    setState(() {
+      _firstController.text = userDoc['firstName'];
+      _lastController.text = userDoc['lastName'];
+      _roleController.text = userDoc['role'];
+    }); 
+  }
+
+  void _updateDetails() async {
+    try {
+      await _users.doc(widget.user!.uid).update({
+        "firstName": _firstController.text, 
+        "lastName": _lastController.text,
+        "role": _roleController.text
+      });
+      setState(() {
+        _initialState = false;
+        _success = true;
+      });
+    } catch (error) {
+      print(error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("Profile Page")),
+      body: Column(
+        children: <Widget>[
+          Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Container(
+                  child: Text('Edit your account details'),
+                  padding: const EdgeInsets.all(16),
+                  alignment: Alignment.center,
+                ),
+                //FIRST NAME 
+                TextFormField(
+                  controller: _firstController,
+                  decoration: InputDecoration(labelText: 'First Name'),
+                  validator: (value) {
+                    if (value?.isEmpty??true) {
+                      return 'Please enter some text';
+                    }
+                    return null;
+                  },
+                ),
+                //LAST NAME
+                TextFormField(
+                  controller: _lastController,
+                  decoration: InputDecoration(labelText: 'Last Name'),
+                  validator: (value) {
+                    if (value?.isEmpty??true) {
+                      return 'Please enter some text';
+                    }
+                    return null;
+                  },
+                ),
+                //USER ROLE
+                TextFormField(
+                  controller: _roleController,
+                  decoration: InputDecoration(labelText: 'User Role'),
+                  validator: (value) {
+                    if (value?.isEmpty??true) {
+                      return 'Please enter some text';
+                    }
+                    return null;
+                  },
+                ),
+                //Submit Button
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  alignment: Alignment.center,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        _updateDetails();
+                      }
+                    },
+                    child: Text('Submit'),
+                  ),
+                ),
+                //Error Message
+                Container(
+                  alignment: Alignment.center,
+                  child: Text(
+                    _initialState
+                        ? ''
+                    : _success
+                        ? 'Successfully updated your profile'
+                        : 'Registration failed',
+                    style: TextStyle(color: _success ? Colors.green : Colors.red),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+ }
 
 
 class ChatPage extends StatefulWidget {
